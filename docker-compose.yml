@@ -1,21 +1,4 @@
 services:
-    nginx:
-        image: 'nginx:latest'
-        ports:
-            - '${HTTP_PORT:-8000}:80'
-            - '${SSL_PORT:-443}:443'
-        environment:
-            - SSL_PORT=${SSL_PORT:-443}
-            - APP_SERVICE=${APP_SERVICE:-laravel.test}
-            - SERVER_NAME=${SERVER_NAME:-localhost}
-        volumes:
-            - 'sail-nginx:/etc/nginx/certs'
-            - './vendor/ryoluo/sail-ssl/nginx/templates:/etc/nginx/templates'
-            - './vendor/ryoluo/sail-ssl/nginx/generate-ssl-cert.sh:/docker-entrypoint.d/99-generate-ssl-cert.sh'
-        depends_on:
-            - ${APP_SERVICE:-laravel.test}
-        networks:
-            - sail
     laravel.test:
         build:
             context: ./vendor/laravel/sail/runtimes/8.2
@@ -39,46 +22,34 @@ services:
         networks:
             - sail
         depends_on:
-            - mariadb
-    mariadb:
-        image: 'mariadb:10'
+            - mysql
+    mysql:
+        image: 'mysql/mysql-server:8.0'
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:
             MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_HOST: '%'
             MYSQL_DATABASE: '${DB_DATABASE}'
             MYSQL_USER: '${DB_USERNAME}'
             MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
         volumes:
-            - 'sail-mariadb:/var/lib/mysql'
-            - ./docker/create-extra-database.sql:/docker-entrypoint-initdb.d/create-extra-database.sql
+            - 'sail-mysql:/var/lib/mysql'
             - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
         networks:
             - sail
         healthcheck:
-            test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+            test:
+                - CMD
+                - mysqladmin
+                - ping
+                - '-p${DB_PASSWORD}'
             retries: 3
             timeout: 5s
-    phpmyadmin:
-        image: 'phpmyadmin:latest'
-        ports:
-          - 8080:80
-        environment:
-          MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-          UPLOAD_LIMIT: 300M
-        links:
-          - "mariadb:db"
-        depends_on:
-          - mariadb
-        networks:
-          - sail
 networks:
     sail:
         driver: bridge
 volumes:
-    sail-nginx:
-        driver: local
-    sail-mariadb:
+    sail-mysql:
         driver: local
